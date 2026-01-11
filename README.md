@@ -52,4 +52,4 @@ This tool is provided for legitimate security research, malware analysis, and ed
 
 ---
 **Build Date**: 01/09/2026  
-**Contact**: sintax@exploit.im
+**Contact**: https://t.me/sinackrst

@@ -4,9 +4,8 @@
 ## 📋 Features
 
 ### 🔍 **Enhanced Detection**
-- 25+ UPX signatures, patterns, and artifacts
+- 15+ UPX signatures, patterns, and artifacts
 - Version strings, copyright notices, and metadata
-- Cross-platform markers (PE, ELF, Mach-O)
 
 ### 🛡️ **Smart Obfuscation**
 - Intelligent padding with mixed strategies:

@@ -1,5 +1,5 @@
 # noMoreUPX! ☠️ 
-## Enjoy the compression and beneifts of UPX packing without the artifacts that pop out in anaylsis. 
+## Enjoy the compression and benefits of UPX packing without the artifacts that pop out in analysis. 
 
 ## 📋 Features
 
@@ -21,8 +21,9 @@
 - Hashed filenames for uniqueness
 - Operation logs with detailed statistics
 - Safe rollback capability
-##
+
 ![Animation](https://github.com/user-attachments/assets/ee546d59-f75c-43cc-8259-ec6006f88843)
+
 ---
 
 ### 🎯 **Professional CLI**

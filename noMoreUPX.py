@@ -31,7 +31,7 @@ UPX_STRINGS = [
     b'$Info: This file is packed with the UPX executable packer http://upx.sf.net $',
     b'$Id: UPX 4.22 Copyright (C) 1996-2024 the UPX Team. All Rights Reserved. $',
     b'UPX!u',
-    b"http://upx.sf.net" 
+    b"http://upx.sf.net",
     b"UPX",
     b"UPX 0.",
     b"UPX 1.",
@@ -39,6 +39,19 @@ UPX_STRINGS = [
     b"UPX 3.",
     b"UPX 4.",
     b"UPX 5.",
+    b"UPX 6.",
+    b"UPX 7.",
+    b"UPX 8.",
+    b"UPX 9.",
+    # Section names
+    b"UPX0",
+    b"UPX1",
+    b"UPX2",
+    # URLs and references
+    b"upx.sourceforge.net",
+    b"upx.sf.net",
+    b"github.com/upx/upx",
+    b"the UPX Team",
     # Copyright notices
     b"Copyright (C) 1996-",
     b"Markus Oberhumer",

@@ -4,8 +4,9 @@
 ## 📋 Features
 
 ### 🔍 **Enhanced Detection**
-- 15+ UPX signatures, patterns, and artifacts
+- 28+ UPX signatures, patterns, and artifacts
 - Version strings, copyright notices, and metadata
+- Section names (UPX0, UPX1, UPX2) and URLs
 
 ### 🛡️ **Smart Obfuscation**
 - Intelligent padding with mixed strategies:
@@ -86,11 +87,12 @@ sudo cp noMoreUPX.py /usr/local/bin/nomoreupx
 ### 1. **Detection Phase**
 ```python
 # Scans for multiple UPX signatures:
-- Version strings: "$Id: UPX 4.22"
+- Version strings: "$Id: UPX 4.22", "UPX 0." through "UPX 9."
 - Magic bytes: "UPX!", "UPX!u"
+- Section names: "UPX0", "UPX1", "UPX2"
+- URLs: "upx.sourceforge.net", "upx.sf.net", "github.com/upx/upx"
 - Metadata: "the UPX Team", "executable packer"
-- Hex patterns: 0x555058 ("UPX"), 0x55505821 ("UPX!")
-- Platform markers: ".upx", "_upx", "upx_"
+- Copyright: "Markus Oberhumer", "Laszlo Molnar", "John F. Reiser"
 ```
 
 ### 2. **Backup Creation**

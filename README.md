@@ -1,6 +1,4 @@
-# noMoreUPX!
-
-Enjoy UPX-like compression benefits while minimizing the obvious UPX artifacts that commonly show up during analysis.
+# NoMoreUPX! is a Python script to detect and/or remove UPX strings from packed binary executables 
 
 ![Animation](https://github.com/user-attachments/assets/ee546d59-f75c-43cc-8259-ec6006f88843)
 

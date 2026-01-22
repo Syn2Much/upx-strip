@@ -4,33 +4,63 @@ import sys
 import shutil
 import argparse
 import hashlib
+import logging
+import random
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, Tuple, Optional
 
 #
-#       .        :uuuuuuu                                 
-#       8F          M$   'WWWWWWWi                        
-#      '$$$$$$"`    'E       #$$$$$                       
-#      t$$$$$       'E       '$$$$$$L    '$"              
-#      $`````       'E       'E#$$$$$k   'E               
-#     J&.           'E       'E `$$$$$N  'E               
-#  '$$$$$$$$$$L     'E       'E   $$$$$$ 'E               
-#  9$#"`"#$$$$$k   'E       `@"    #$$$$$$E               
-#         '$$$$$   'E        $      `$$$$$&               
-#   ..     9$$$$L..JBu       $        R$$$$N              
-# d$$$R    9$$$F   'E        $         "$$$$$r            
+#       .        :uuuuuuu
+#       8F          M$   'WWWWWWWi
+#      '$$$$$$"`    'E       #$$$$$
+#      t$$$$$       'E       '$$$$$$L    '$"
+#      $`````       'E       'E#$$$$$k   'E
+#     J&.           'E       'E `$$$$$N  'E
+#  '$$$$$$$$$$L     'E       'E   $$$$$$ 'E
+#  9$#"`"#$$$$$k   'E       `@"    #$$$$$$E
+#         '$$$$$   'E        $      `$$$$$&
+#   ..     9$$$$L..JBu       $        R$$$$N
+# d$$$R    9$$$F   'E        $         "$$$$$r
 # $$$$    J$$$F     {E      .$.         '$$$$$
-#  "$$$$$$$$$"   ..u$$u..  uz$$bu         #$$$          
+#  "$$$$$$$$$"   ..u$$u..  uz$$bu         #$$$
 #                                          '$$k.
 #                     noMoreUPX! build date 01/09/2026
 #                                sintax@exploit.im
 
+
+# Configure logging
+def setup_logging(log_file: Optional[str] = None) -> logging.Logger:
+    """Setup logging configuration"""
+    logger = logging.getLogger("noMoreUPX")
+    logger.setLevel(logging.DEBUG)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_format = logging.Formatter("%(levelname)s: %(message)s")
+    console_handler.setFormatter(console_format)
+    logger.addHandler(console_handler)
+
+    # File handler (if specified)
+    if log_file:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)
+        file_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        file_handler.setFormatter(file_format)
+        logger.addHandler(file_handler)
+
+    return logger
+
+
+logger = setup_logging()
+
 UPX_STRINGS = [
     b"$Id: UPX ",
-    b'UPX!',
-    b'$Info: This file is packed with the UPX executable packer http://upx.sf.net $',
-    b'$Id: UPX 4.22 Copyright (C) 1996-2024 the UPX Team. All Rights Reserved. $',
-    b'UPX!u',
+    b"UPX!",
+    b"$Info: This file is packed with the UPX executable packer http://upx.sf.net $",
+    b"$Id: UPX 4.22 Copyright (C) 1996-2024 the UPX Team. All Rights Reserved. $",
+    b"UPX!u",
     b"http://upx.sf.net",
     b"UPX",
     b"UPX 0.",
@@ -61,173 +91,259 @@ UPX_STRINGS = [
 
 
 class BackupManager:
-    def __init__(self, target_path):
+    def __init__(self, target_path: str):
         self.target_path = os.path.abspath(target_path)
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
+
         # Create backup directory name
         if os.path.isfile(self.target_path):
             target_name = os.path.basename(self.target_path)
             backup_dir_name = f"backup_{target_name}_{self.timestamp}"
-            self.backup_dir = os.path.join(os.path.dirname(self.target_path), backup_dir_name)
+            self.backup_dir = os.path.join(
+                os.path.dirname(self.target_path), backup_dir_name
+            )
         else:
-            backup_dir_name = f"backup_{os.path.basename(self.target_path)}_{self.timestamp}"
+            backup_dir_name = (
+                f"backup_{os.path.basename(self.target_path)}_{self.timestamp}"
+            )
             self.backup_dir = os.path.join(self.target_path, "..", backup_dir_name)
             self.backup_dir = os.path.abspath(self.backup_dir)
-        
+
         # Ensure backup directory exists
-        os.makedirs(self.backup_dir, exist_ok=True)
-    
-    def backup_file(self, filepath):
+        try:
+            os.makedirs(self.backup_dir, exist_ok=True)
+            logger.debug(f"Backup directory created: {self.backup_dir}")
+        except Exception as e:
+            logger.error(f"Failed to create backup directory: {e}")
+            raise
+
+    def backup_file(self, filepath: str) -> Optional[str]:
         """Create a backup of a single file"""
         try:
             filename = os.path.basename(filepath)
-            backup_path = os.path.join(self.backup_dir, filename)
-            
+
             # Add hash to filename for uniqueness
-            with open(filepath, 'rb') as f:
+            with open(filepath, "rb") as f:
                 file_hash = hashlib.md5(f.read()).hexdigest()[:8]
-            
+
             backup_name = f"{filename}.{file_hash}.bak"
             backup_path = os.path.join(self.backup_dir, backup_name)
-            
+
             shutil.copy2(filepath, backup_path)
+            logger.debug(f"File backed up: {backup_path}")
             return backup_path
         except Exception as e:
-            print(f"  [!] Backup failed for {filepath}: {e}")
+            logger.error(f"Backup failed for {filepath}: {e}")
             return None
-    
-    def save_operation_log(self, results):
-        """Save operation log to backup directory"""
-        log_file = os.path.join(self.backup_dir, "operation.log")
-        
-        with open(log_file, 'w') as f:
-            f.write(f"noMoreUPX! Operation Log\n")
-            f.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"Target: {self.target_path}\n")
-            f.write(f"Backup Directory: {self.backup_dir}\n")
-            f.write(f"Total files processed: {results['processed']}\n")
-            f.write(f"Files modified: {results['modified']}\n")
-            f.write(f"UPX patterns found: {results['patterns_found']}\n")
-            f.write(f"Total replacements: {results['total_replacements']}\n")
-            f.write("\n" + "="*50 + "\n\n")
-            
-            for file_result in results['file_results']:
-                f.write(f"File: {file_result['filename']}\n")
-                f.write(f"  Modified: {'Yes' if file_result['modified'] else 'No'}\n")
-                if file_result['modified']:
-                    f.write(f"  Replacements: {file_result['replacements']}\n")
-                    f.write(f"  Patterns: {', '.join([p.decode('ascii', errors='ignore')[:20] for p in file_result['patterns']])}\n")
-                f.write("\n")
-        
-        return log_file
 
-def generate_obfuscation_padding(length):
-    """Generate intelligent obfuscation padding"""
-    import random
-    
-    # Mix different types of bytes for better obfuscation
+    def save_operation_log(self, results: Dict) -> str:
+        """Save operation log to backup directory with detailed information"""
+        log_file = os.path.join(self.backup_dir, "operation.log")
+
+        try:
+            with open(log_file, "w") as f:
+                f.write(f"noMoreUPX! Operation Log\n")
+                f.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Target: {self.target_path}\n")
+                f.write(f"Backup Directory: {self.backup_dir}\n")
+                f.write(f"Total files processed: {results['processed']}\n")
+                f.write(f"Files modified: {results['modified']}\n")
+                f.write(f"UPX patterns found: {results['patterns_found']}\n")
+                f.write(f"Total replacements: {results['total_replacements']}\n")
+                f.write("\n" + "=" * 50 + "\n\n")
+
+                for file_result in results["file_results"]:
+                    f.write(f"File: {file_result['filename']}\n")
+                    f.write(
+                        f"  Modified: {'Yes' if file_result['modified'] else 'No'}\n"
+                    )
+                    if file_result["error"]:
+                        f.write(f"  Error: {file_result['error']}\n")
+                    if file_result["modified"]:
+                        f.write(f"  Replacements: {file_result['replacements']}\n")
+                        f.write(
+                            f"  Patterns: {', '.join([p.decode('ascii', errors='ignore')[:20] for p in file_result['patterns']])}\n"
+                        )
+                    f.write("\n")
+
+            logger.debug(f"Operation log saved: {log_file}")
+            return log_file
+        except Exception as e:
+            logger.error(f"Failed to save operation log: {e}")
+            return None
+
+
+def generate_obfuscation_padding(length: int) -> bytes:
+    """Generate intelligent obfuscation padding with improved randomness"""
     padding = bytearray()
-    
+
     for i in range(length):
         # Random strategy selection
         strategy = random.random()
-        
+
         if strategy < 0.3:  # 30% - Random valid x86 opcodes
             opcodes = [
-                0x90, 0x90, 0x90, 0x90,  # NOP (common)
-                0x31, 0xC0, 0x31, 0xC9,  # XOR reg, reg
-                0x48, 0x89, 0xC7, 0x48,  # MOV instructions
-                0x89, 0xF8, 0x8B, 0xFF,  # More MOV
-                0xC3, 0xCC, 0xF4, 0xFB,  # RET, INT3, HLT, STI
+                0x90,
+                0x90,
+                0x90,
+                0x90,  # NOP (common)
+                0x31,
+                0xC0,
+                0x31,
+                0xC9,  # XOR reg, reg
+                0x48,
+                0x89,
+                0xC7,
+                0x48,  # MOV instructions
+                0x89,
+                0xF8,
+                0x8B,
+                0xFF,  # More MOV
+                0xC3,
+                0xCC,
+                0xF4,
+                0xFB,  # RET, INT3, HLT, STI
             ]
             padding.append(random.choice(opcodes))
-        
+
         elif strategy < 0.6:  # 30% - Structured but meaningless data
             patterns = [
-                lambda x: (x % 256),                    # Incrementing pattern
-                lambda x: 0x00 if random.random() < 0.1 else random.randint(1, 255),  # Sparse nulls
-                lambda x: 0xFF if random.random() < 0.1 else random.randint(0, 254),  # Sparse 0xFF
-                lambda x: random.choice([0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE]),  # Common hex words
+                lambda x: (x % 256),  # Incrementing pattern
+                lambda x: (
+                    0x00 if random.random() < 0.1 else random.randint(1, 255)
+                ),  # Sparse nulls
+                lambda x: (
+                    0xFF if random.random() < 0.1 else random.randint(0, 254)
+                ),  # Sparse 0xFF
+                lambda x: random.choice(
+                    [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE]
+                ),  # Common hex words
             ]
             pattern = random.choice(patterns)
             padding.append(pattern(i))
-        
+
         else:  # 40% - Truly random
             padding.append(random.randint(0, 255))
-    
+
     return bytes(padding)
 
-def scan_upx_patterns(data):
-    """Scan for UPX patterns in data"""
+
+def scan_upx_patterns(data: bytes) -> List[bytes]:
+    """Scan for UPX patterns in data with efficient search"""
     found_patterns = []
+    seen = set()
+
     for upx_str in UPX_STRINGS:
-        if upx_str in data:
+        if upx_str in data and upx_str not in seen:
             found_patterns.append(upx_str)
+            seen.add(upx_str)
+
     return found_patterns
 
-def process_file(filepath, backup_manager, dry_run=False):
-    """Process a single file for UPX patterns"""
-    results = {
-        'filename': os.path.basename(filepath),
-        'modified': False,
-        'replacements': 0,
-        'patterns': []
-    }
-    
+
+def is_likely_binary(filepath: str) -> bool:
+    """Check if file is likely binary by sampling first 8KB"""
     try:
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
+            chunk = f.read(8192)
+
+        if not chunk:
+            return False
+
+        # Check for null bytes (binary indicator)
+        if b"\x00" in chunk:
+            return True
+
+        # Check if mostly printable ASCII
+        text_chars = sum(1 for b in chunk if 32 <= b <= 126 or b in (9, 10, 13))
+        return (text_chars / len(chunk)) < 0.75
+
+    except Exception as e:
+        logger.debug(f"Error checking if binary {filepath}: {e}")
+        return True  # Assume binary on error
+
+
+def process_file(
+    filepath: str, backup_manager: "BackupManager", dry_run: bool = False
+) -> Dict:
+    """Process a single file for UPX patterns with efficient memory handling"""
+    results = {
+        "filename": os.path.basename(filepath),
+        "modified": False,
+        "replacements": 0,
+        "patterns": [],
+        "error": None,
+    }
+
+    try:
+        # Skip if not binary
+        if not is_likely_binary(filepath):
+            logger.debug(f"Skipping non-binary file: {filepath}")
+            return results
+
+        with open(filepath, "rb") as f:
             data = f.read()
-        
+
         # Scan for UPX patterns
         found_patterns = scan_upx_patterns(data)
-        results['patterns'] = found_patterns
-        
+        results["patterns"] = found_patterns
+
         if not found_patterns:
             return results
-        
+
         if dry_run:
-            print(f"  [SCAN] Found {len(found_patterns)} UPX patterns")
+            logger.info(
+                f"Found {len(found_patterns)} UPX patterns in {os.path.basename(filepath)}"
+            )
             return results
-        
+
         # Create backup before modification
         backup_path = backup_manager.backup_file(filepath)
         if backup_path:
-            print(f"  [✓] Backup created: {os.path.basename(backup_path)}")
-        
+            logger.info(f"Backup created: {os.path.basename(backup_path)}")
+
         # Apply modifications
         new_data = data
         replacements = 0
-        
+
         for upx_str in found_patterns:
             # Replace each occurrence with obfuscated padding
             while upx_str in new_data:
                 padding = generate_obfuscation_padding(len(upx_str))
                 new_data = new_data.replace(upx_str, padding, 1)
                 replacements += 1
-        
+
         if new_data != data:
             # Write modified file
-            with open(filepath, 'wb') as f:
+            with open(filepath, "wb") as f:
                 f.write(new_data)
-            
-            results['modified'] = True
-            results['replacements'] = replacements
-            
-            print(f"  [✓] Modified: {replacements} UPX patterns replaced")
-        
+
+            results["modified"] = True
+            results["replacements"] = replacements
+
+            logger.info(
+                f"Modified: {os.path.basename(filepath)} ({replacements} patterns replaced)"
+            )
+
         return results
-        
-    except PermissionError:
-        print(f"  [!] Permission denied: {filepath}")
+
+    except PermissionError as e:
+        results["error"] = f"Permission denied: {e}"
+        logger.warning(f"Permission denied: {filepath}")
+        return results
+    except MemoryError:
+        results["error"] = "File too large to process"
+        logger.error(f"File too large (memory error): {filepath}")
         return results
     except Exception as e:
-        print(f"  [!] Error processing {filepath}: {e}")
+        results["error"] = str(e)
+        logger.error(f"Error processing {filepath}: {e}", exc_info=True)
         return results
+
 
 def print_banner():
     """Print the tool banner"""
-    print(r"""
+    banner = r"""
  __    __            __       __   ______                       __    __  _______   __    __  __ 
 |  \  |  \          |  \     /  \ /      \                     |  \  |  \|       \ |  \  |  \|  \
 | $$\ | $$  ______  | $$\   /  $$|  $$$$$$\  ______    ______  | $$  | $$| $$$$$$$\| $$  | $$| $$
@@ -238,14 +354,17 @@ def print_banner():
 | $$  \$$$ \$$    $$| $$  \$ | $$ \$$    $$| $$       \$$     \ \$$    $$| $$      | $$  | $$|  \
  \$$   \$$  \$$$$$$  \$$      \$$  \$$$$$$  \$$        \$$$$$$$  \$$$$$$  \$$       \$$   \$$ \$$
                                                                                                  
-    """)    
+    """
+    print(banner)
     print(f"                 Build: 01/09/2026")
     print(f"               Author: sintax@exploit.im")
+    print(f"              Version: 2.0 (Improved)")
     print()
+
 
 def main():
     parser = argparse.ArgumentParser(
-        description='noMoreUPX! - UPX pattern removal tool with backup system',
+        description="noMoreUPX! - UPX pattern removal tool with backup system",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -253,115 +372,143 @@ Examples:
   %(prog)s ./malware_samples/       # Process directory
   %(prog)s target.bin --dry-run     # Scan without modifying
   %(prog)s -h                       # Show this help message
-        """
+        """,
     )
-    
-    parser.add_argument('target', help='File or directory to process')
-    parser.add_argument('--dry-run', '-d', action='store_true', 
-                       help='Scan for UPX patterns without modifying files')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Show detailed information')
-    
+
+    parser.add_argument("target", help="File or directory to process")
+    parser.add_argument(
+        "--dry-run",
+        "-d",
+        action="store_true",
+        help="Scan for UPX patterns without modifying files",
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Show detailed information"
+    )
+    parser.add_argument("--log", "-l", metavar="FILE", help="Write debug log to file")
+
     args = parser.parse_args()
-    
+
+    # Setup logging with optional file output
+    global logger
+    if args.log:
+        logger = setup_logging(args.log)
+
     # Print banner
     print_banner()
-    
+
     # Validate target
     if not os.path.exists(args.target):
-        print(f"[!] Error: Target '{args.target}' does not exist")
+        logger.error(f"Target '{args.target}' does not exist")
         sys.exit(1)
-    
+
     # Initialize backup manager
     backup_manager = BackupManager(args.target)
-    
-    print(f"[*] Target: {args.target}")
-    print(f"[*] Mode: {'Scan only (dry run)' if args.dry_run else 'Modify with backup'}")
-    print(f"[*] Backup directory: {backup_manager.backup_dir}")
+
+    logger.info(f"Target: {args.target}")
+    logger.info(
+        f"Mode: {'Scan only (dry run)' if args.dry_run else 'Modify with backup'}"
+    )
+    logger.info(f"Backup directory: {backup_manager.backup_dir}")
     print()
-    
+
     # Process files
     file_results = []
     total_processed = 0
     total_modified = 0
     total_patterns = 0
     total_replacements = 0
-    
+
     if os.path.isfile(args.target):
         # Single file mode
-        print(f"[*] Processing single file:")
+        logger.info(f"Processing single file: {os.path.basename(args.target)}")
         result = process_file(args.target, backup_manager, args.dry_run)
         file_results.append(result)
         total_processed = 1
-        if result['modified']:
+        if result["modified"]:
             total_modified = 1
-            total_replacements = result['replacements']
-        total_patterns = len(result['patterns'])
-        
+            total_replacements = result["replacements"]
+        total_patterns = len(result["patterns"])
+
     elif os.path.isdir(args.target):
         # Directory mode
-        print(f"[*] Processing directory (recursive):")
-        
+        logger.info(f"Processing directory (recursive): {args.target}")
+        files_found = 0
+
         for root, dirs, files in os.walk(args.target):
             # Skip backup directories
-            if 'backup_' in root and root.startswith(args.target):
+            if "backup_" in root and root.startswith(args.target):
                 continue
-                
+
             for file in files:
                 filepath = os.path.join(root, file)
-                
+
                 # Skip very large files (> 100MB)
-                if os.path.getsize(filepath) > 100 * 1024 * 1024:
-                    if args.verbose:
-                        print(f"  [.] Skipping large file: {file} (>100MB)")
+                try:
+                    if os.path.getsize(filepath) > 100 * 1024 * 1024:
+                        if args.verbose:
+                            logger.debug(f"Skipping large file: {file} (>100MB)")
+                        continue
+                except OSError:
                     continue
-                
-                print(f"  [.] Processing: {file}")
-                
+
+                files_found += 1
+                if args.verbose:
+                    print(f"  Processing: {file}")
+
                 result = process_file(filepath, backup_manager, args.dry_run)
                 file_results.append(result)
                 total_processed += 1
-                
-                if result['modified']:
+
+                if result["modified"]:
                     total_modified += 1
-                    total_replacements += result['replacements']
-                
-                total_patterns += len(result['patterns'])
-    
+                    total_replacements += result["replacements"]
+
+                total_patterns += len(result["patterns"])
+
+        logger.debug(f"Total files found: {files_found}")
+
     # Summary
     print()
-    print("="*60)
+    print("=" * 60)
     print("                     PROCESSING SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"  Files processed:       {total_processed}")
     print(f"  Files modified:        {total_modified}")
     print(f"  UPX patterns found:    {total_patterns}")
     print(f"  Total replacements:    {total_replacements}")
     print(f"  Backup location:       {backup_manager.backup_dir}")
-    
+
     if not args.dry_run and total_modified > 0:
         # Save operation log
         results_summary = {
-            'processed': total_processed,
-            'modified': total_modified,
-            'patterns_found': total_patterns,
-            'total_replacements': total_replacements,
-            'file_results': file_results
+            "processed": total_processed,
+            "modified": total_modified,
+            "patterns_found": total_patterns,
+            "total_replacements": total_replacements,
+            "file_results": file_results,
         }
-        
+
         log_file = backup_manager.save_operation_log(results_summary)
-        print(f"  Operation log:         {log_file}")
-        
+        if log_file:
+            print(f"  Operation log:         {log_file}")
+
         print("\n  [!] IMPORTANT: Original files have been modified!")
         print(f"      Backups saved in: {backup_manager.backup_dir}")
-    
-    print("="*60)
-    
+
+    print("=" * 60)
+
     if args.dry_run and total_patterns > 0:
         print("\n  [!] Use without --dry-run to apply modifications")
         print("      Backups will be created automatically")
-    
+    elif total_patterns == 0:
+        print("\n  [✓] No UPX patterns found in target files")
+
     print("\n[+] Operation completed successfully!\n")
+
+    # Return appropriate exit code
+    sys.exit(0 if total_patterns >= 0 else 1)
+
 
 if __name__ == "__main__":
     main()

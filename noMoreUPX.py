@@ -25,8 +25,8 @@ from typing import Dict, List, Tuple, Optional
 # $$$$    J$$$F     {E      .$.         '$$$$$
 #  "$$$$$$$$$"   ..u$$u..  uz$$bu         #$$$
 #                                          '$$k.
-#                     noMoreUPX! build date 01/09/2026
-#                                sintax@exploit.im
+#                     noMoreUPX! V2 01/22/2026
+#                               
 
 
 # Configure logging
